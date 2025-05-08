@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { getOrders, getSalesStats, updateOrderStatus } from "@/lib/orders"
 import { logoutAdmin } from "@/lib/auth"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { products } from "@/lib/products"
 import type { Order } from "@/lib/orders"
@@ -17,19 +16,34 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<any>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    // Cargar pedidos y estadísticas
-    const loadData = () => {
-      const allOrders = getOrders()
-      setOrders(allOrders)
-      setStats(getSalesStats())
-    }
+  // Función para cargar datos
+  const loadData = () => {
+    const allOrders = getOrders()
+    setOrders(allOrders)
+    setStats(getSalesStats())
+  }
 
+  useEffect(() => {
+    // Cargar datos iniciales
     loadData()
 
-    // Actualizar datos cada 30 segundos
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
+    // Configurar un intervalo para actualizar datos cada 10 segundos
+    const interval = setInterval(loadData, 10000)
+
+    // Configurar un evento para actualizar cuando el usuario regrese a la pestaña
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadData()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    // Limpiar
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
   }, [])
 
   const handleLogout = () => {
@@ -39,8 +53,7 @@ export default function AdminDashboardPage() {
 
   const handleStatusChange = (orderId: string, status: Order["status"]) => {
     updateOrderStatus(orderId, status)
-    setOrders(getOrders())
-    setStats(getSalesStats())
+    loadData() // Recargar datos inmediatamente
   }
 
   const getProductNameById = (id: string) => {
@@ -110,16 +123,22 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-80">
-                  {stats?.salesByDay && (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats.salesByDay}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="revenue" fill="#f97316" name="Ventas ($)" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  {stats?.salesByDay && stats.salesByDay.length > 0 ? (
+                    <div className="space-y-4">
+                      {stats.salesByDay.map((day: any) => (
+                        <div key={day.date} className="flex justify-between items-center">
+                          <div className="font-medium">{day.date}</div>
+                          <div className="flex items-center">
+                            <span className="mr-4">{day.orders} pedidos</span>
+                            <span className="font-bold">${day.revenue.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-muted-foreground">No hay datos de ventas disponibles</p>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -132,7 +151,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats?.productSales &&
+                  {stats?.productSales && Object.keys(stats.productSales).length > 0 ? (
                     Object.entries(stats.productSales)
                       .sort(([, a]: [string, any], [, b]: [string, any]) => b.quantity - a.quantity)
                       .slice(0, 5)
@@ -144,7 +163,10 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="font-bold">{data.quantity} unidades</div>
                         </div>
-                      ))}
+                      ))
+                  ) : (
+                    <p className="text-muted-foreground">No hay datos de productos vendidos</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

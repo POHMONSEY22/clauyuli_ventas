@@ -19,6 +19,7 @@ export default function CarritoPage() {
     phone: "",
     address: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -39,27 +40,40 @@ export default function CarritoPage() {
       return
     }
 
-    const formData = new FormData()
-    formData.append("name", customerInfo.name)
-    formData.append("phone", customerInfo.phone)
-    formData.append("address", customerInfo.address || "")
-    formData.append("cartItems", JSON.stringify(cart))
+    setIsSubmitting(true)
 
-    const result = await createOrder(formData)
+    try {
+      const formData = new FormData()
+      formData.append("name", customerInfo.name)
+      formData.append("phone", customerInfo.phone)
+      formData.append("address", customerInfo.address || "")
+      formData.append("cartItems", JSON.stringify(cart))
 
-    if (result.success) {
-      toast({
-        title: "¡Pedido realizado!",
-        description: "Tu pedido ha sido recibido y será procesado pronto.",
-      })
-      clearCart()
-      router.push("/gracias")
-    } else {
+      const result = await createOrder(formData)
+
+      if (result.success) {
+        toast({
+          title: "¡Pedido realizado!",
+          description: "Tu pedido ha sido recibido y será procesado pronto.",
+        })
+        clearCart()
+        router.push("/gracias")
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error al procesar el pedido:", error)
       toast({
         title: "Error",
-        description: result.message,
+        description: "Ocurrió un error al procesar tu pedido. Por favor intenta nuevamente.",
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -175,8 +189,8 @@ export default function CarritoPage() {
             </div>
           </div>
 
-          <Button className="w-full bg-orange-500 hover:bg-orange-600" onClick={handleCheckout}>
-            Realizar Pedido
+          <Button className="w-full bg-orange-500 hover:bg-orange-600" onClick={handleCheckout} disabled={isSubmitting}>
+            {isSubmitting ? "Procesando..." : "Realizar Pedido"}
           </Button>
         </div>
       </div>

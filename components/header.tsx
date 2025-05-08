@@ -14,7 +14,7 @@ export default function Header() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
-    <header className="bg-amber-600 text-white shadow-md">
+    <header className="bg-orange-600 text-white shadow-md">
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           <Link href="/" className="text-2xl font-bold">
@@ -29,7 +29,10 @@ export default function Header() {
               Productos
             </Link>
             <Link href="/carrito">
-              <Button variant="outline" className="text-white border-white hover:bg-amber-700 hover:text-white">
+              <Button
+                variant="outline"
+                className="text-white border-white hover:bg-orange-700 hover:text-white bg-orange-500"
+              >
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Carrito
                 {totalItems > 0 && (
@@ -40,7 +43,10 @@ export default function Header() {
               </Button>
             </Link>
             <Link href="/admin/login">
-              <Button variant="outline" className="text-white border-white hover:bg-amber-700 hover:text-white">
+              <Button
+                variant="outline"
+                className="text-white border-white hover:bg-orange-700 hover:text-white bg-orange-500"
+              >
                 <User className="mr-2 h-4 w-4" />
                 Admin
               </Button>
@@ -52,7 +58,7 @@ export default function Header() {
               <Button
                 variant="outline"
                 size="icon"
-                className="text-white border-white hover:bg-amber-700 hover:text-white relative"
+                className="text-white border-white hover:bg-orange-700 hover:text-white bg-orange-500 relative"
               >
                 <ShoppingCart className="h-4 w-4" />
                 {totalItems > 0 && (
@@ -67,7 +73,7 @@ export default function Header() {
               <Button
                 variant="outline"
                 size="icon"
-                className="text-white border-white hover:bg-amber-700 hover:text-white"
+                className="text-white border-white hover:bg-orange-700 hover:text-white bg-orange-500"
               >
                 <User className="h-4 w-4" />
               </Button>
@@ -77,7 +83,7 @@ export default function Header() {
               variant="outline"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white border-white hover:bg-amber-700 hover:text-white"
+              className="text-white border-white hover:bg-orange-700 hover:text-white bg-orange-500"
             >
               {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </Button>
@@ -88,7 +94,7 @@ export default function Header() {
       {/* Mobile menu */}
       <div
         className={cn(
-          "md:hidden absolute w-full bg-amber-700 z-50 shadow-lg transition-all duration-300 ease-in-out",
+          "md:hidden absolute w-full bg-orange-700 z-50 shadow-lg transition-all duration-300 ease-in-out",
           mobileMenuOpen ? "max-h-screen py-4" : "max-h-0 overflow-hidden py-0",
         )}
       >

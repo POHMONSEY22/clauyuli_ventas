@@ -1,3 +1,5 @@
+"use client"
+
 import type { CartItem } from "./types"
 
 export interface Order {
@@ -12,7 +14,7 @@ export interface Order {
 }
 
 // En una aplicación real, esto vendría de una base de datos
-let orders: Order[] = []
+const orders: Order[] = []
 
 // Función para guardar un pedido
 export function saveOrder(order: Omit<Order, "id" | "createdAt" | "status">): Order {
@@ -23,35 +25,35 @@ export function saveOrder(order: Omit<Order, "id" | "createdAt" | "status">): Or
     createdAt: new Date().toISOString(),
   }
 
-  orders = [...orders, newOrder]
+  // Obtener pedidos existentes
+  const savedOrders = localStorage.getItem("orders")
+  const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
 
-  // En una aplicación real, aquí guardaríamos en la base de datos
-  // Para esta demo, guardamos en localStorage para persistencia
-  if (typeof window !== "undefined") {
-    const savedOrders = localStorage.getItem("orders")
-    const parsedOrders = savedOrders ? JSON.parse(savedOrders) : []
-    localStorage.setItem("orders", JSON.stringify([...parsedOrders, newOrder]))
-  }
+  // Añadir el nuevo pedido
+  const updatedOrders = [...existingOrders, newOrder]
+
+  // Guardar en localStorage
+  localStorage.setItem("orders", JSON.stringify(updatedOrders))
 
   return newOrder
 }
 
 // Función para obtener todos los pedidos
 export function getOrders(): Order[] {
-  // En una aplicación real, aquí obtendríamos de la base de datos
-  // Para esta demo, obtenemos de localStorage
-  if (typeof window !== "undefined") {
-    const savedOrders = localStorage.getItem("orders")
-    if (savedOrders) {
-      orders = JSON.parse(savedOrders)
-    }
-  }
+  if (typeof window === "undefined") return []
 
-  return orders
+  const savedOrders = localStorage.getItem("orders")
+  return savedOrders ? JSON.parse(savedOrders) : []
 }
 
 // Función para actualizar el estado de un pedido
 export function updateOrderStatus(orderId: string, status: Order["status"]): Order | null {
+  if (typeof window === "undefined") return null
+
+  const savedOrders = localStorage.getItem("orders")
+  if (!savedOrders) return null
+
+  const orders = JSON.parse(savedOrders) as Order[]
   const orderIndex = orders.findIndex((order) => order.id === orderId)
 
   if (orderIndex === -1) return null
@@ -61,18 +63,17 @@ export function updateOrderStatus(orderId: string, status: Order["status"]): Ord
     status,
   }
 
-  orders = [...orders.slice(0, orderIndex), updatedOrder, ...orders.slice(orderIndex + 1)]
+  const updatedOrders = [...orders.slice(0, orderIndex), updatedOrder, ...orders.slice(orderIndex + 1)]
 
   // Actualizar en localStorage
-  if (typeof window !== "undefined") {
-    localStorage.setItem("orders", JSON.stringify(orders))
-  }
+  localStorage.setItem("orders", JSON.stringify(updatedOrders))
 
   return updatedOrder
 }
 
 // Función para obtener estadísticas de ventas
 export function getSalesStats() {
+  const orders = getOrders()
   const completedOrders = orders.filter((order) => order.status === "completed")
 
   const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0)

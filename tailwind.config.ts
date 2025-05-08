@@ -32,6 +32,18 @@ const config = {
           800: "#92400e",
           900: "#78350f",
         },
+        orange: {
+          50: "#fff7ed",
+          100: "#ffedd5",
+          200: "#fed7aa",
+          300: "#fdba74",
+          400: "#fb923c",
+          500: "#f97316",
+          600: "#ea580c", // Este es el color principal que usaremos para el header
+          700: "#c2410c",
+          800: "#9a3412",
+          900: "#7c2d12",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
