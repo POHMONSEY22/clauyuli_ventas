@@ -20,7 +20,7 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <div className="relative w-32 h-32 md:w-40 md:h-40">
+          <div className="relative w-40 h-40 md:w-48 md:h-48">
             <Image src="/logo.png" alt="Logo" fill className="object-contain" />
           </div>
         </div>

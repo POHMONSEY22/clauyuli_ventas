@@ -5,14 +5,14 @@ export default function Footer() {
     <footer className="bg-amber-800 text-amber-100 py-8">
       <div className="container mx-auto px-4">
         <div className="flex justify-center mb-6">
-          <div className="relative w-16 h-16">
-            <Image src="/logo.png" alt="Logo" width={64} height={64} className="object-contain" />
+          <div className="relative h-16 w-64">
+            <Image src="/logo-text.jpeg" alt="Empanadas y Arepas" fill className="object-contain" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4">Empanadas & Arepas</h3>
+            <h3 className="text-xl font-bold mb-4">Sobre Nosotros</h3>
             <p className="mb-2">Los mejores sabores tradicionales</p>
             <p>Hechos con ingredientes frescos y de calidad</p>
           </div>
