@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { ShoppingCart, Menu, X, User } from "lucide-react"
+import { ShoppingCart, Menu, X, User, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/context/cart-context"
 import { useState } from "react"
@@ -31,6 +31,10 @@ export default function Header() {
             </Link>
             <Link href="/productos" className="hover:text-amber-200 transition-colors">
               Productos
+            </Link>
+            <Link href="/info" className="hover:text-amber-200 transition-colors">
+              <Info className="mr-1 h-4 w-4 inline" />
+              Info
             </Link>
             <Link href="/carrito">
               <Button
@@ -116,6 +120,14 @@ export default function Header() {
             onClick={() => setMobileMenuOpen(false)}
           >
             Productos
+          </Link>
+          <Link
+            href="/info"
+            className="hover:text-amber-200 transition-colors py-2"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <Info className="mr-1 h-4 w-4 inline" />
+            Info
           </Link>
         </div>
       </div>

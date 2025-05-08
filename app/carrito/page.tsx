@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Trash2 } from "lucide-react"
 import { createOrder } from "./action"
+import { saveOrder } from "@/lib/orders"
 
 export default function CarritoPage() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart()
@@ -52,24 +53,14 @@ export default function CarritoPage() {
       const result = await createOrder(formData)
 
       if (result.success) {
-        // Guardar el pedido en localStorage para que el admin pueda verlo
-        const order = {
-          id: result.orderId,
+        // Guardar el pedido usando nuestra nueva función
+        await saveOrder({
           customerName: customerInfo.name,
           customerPhone: customerInfo.phone,
           customerAddress: customerInfo.address || undefined,
           items: cart,
           total: subtotal,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        }
-
-        // Obtener pedidos existentes
-        const savedOrders = localStorage.getItem("orders")
-        const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
-
-        // Añadir el nuevo pedido
-        localStorage.setItem("orders", JSON.stringify([...existingOrders, order]))
+        })
 
         toast({
           title: "¡Pedido realizado!",

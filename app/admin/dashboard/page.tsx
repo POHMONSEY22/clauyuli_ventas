@@ -10,21 +10,34 @@ import { logoutAdmin } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import { products } from "@/lib/products"
 import type { Order } from "@/lib/orders"
+import { syncOrders } from "@/lib/db"
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   // Función para cargar datos
-  const loadData = () => {
+  const loadData = async () => {
+    setIsLoading(true)
     try {
-      const allOrders = getOrders()
+      // Primero sincronizar pedidos entre localStorage e IndexedDB
+      await syncOrders()
+
+      // Luego obtener todos los pedidos
+      const allOrders = await getOrders()
       setOrders(allOrders)
-      setStats(getSalesStats())
+
+      // Y finalmente obtener las estadísticas
+      const salesStats = await getSalesStats()
+      setStats(salesStats)
+
       console.log("Pedidos cargados:", allOrders.length)
     } catch (error) {
       console.error("Error al cargar datos:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -32,8 +45,8 @@ export default function AdminDashboardPage() {
     // Cargar datos iniciales
     loadData()
 
-    // Configurar un intervalo para actualizar datos cada 10 segundos
-    const interval = setInterval(loadData, 10000)
+    // Configurar un intervalo para actualizar datos cada 30 segundos
+    const interval = setInterval(loadData, 30000)
 
     // Configurar un evento para actualizar cuando el usuario regrese a la pestaña
     const handleVisibilityChange = () => {
@@ -56,9 +69,13 @@ export default function AdminDashboardPage() {
     router.push("/admin/login")
   }
 
-  const handleStatusChange = (orderId: string, status: Order["status"]) => {
-    updateOrderStatus(orderId, status)
-    loadData() // Recargar datos inmediatamente
+  const handleStatusChange = async (orderId: string, status: Order["status"]) => {
+    try {
+      await updateOrderStatus(orderId, status)
+      loadData() // Recargar datos inmediatamente
+    } catch (error) {
+      console.error("Error al cambiar estado:", error)
+    }
   }
 
   const getProductNameById = (id: string) => {
@@ -71,8 +88,8 @@ export default function AdminDashboardPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Panel de Administración</h1>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={loadData}>
-            Actualizar Datos
+          <Button variant="outline" onClick={loadData} disabled={isLoading}>
+            {isLoading ? "Cargando..." : "Actualizar Datos"}
           </Button>
           <Button variant="outline" onClick={handleLogout}>
             Cerrar Sesión
@@ -190,88 +207,94 @@ export default function AdminDashboardPage() {
               <CardDescription>Gestiona los pedidos y actualiza su estado</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {orders.length === 0 ? (
-                  <p className="text-center py-4">No hay pedidos registrados</p>
-                ) : (
-                  orders.map((order) => (
-                    <div key={order.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-bold">Pedido #{order.id.split("-")[1]}</h3>
-                          <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
-                        </div>
-                        <Badge
-                          className={
-                            order.status === "completed"
-                              ? "bg-green-500"
+              {isLoading ? (
+                <div className="text-center py-8">Cargando pedidos...</div>
+              ) : (
+                <div className="space-y-6">
+                  {orders.length === 0 ? (
+                    <p className="text-center py-4">No hay pedidos registrados</p>
+                  ) : (
+                    orders.map((order) => (
+                      <div key={order.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="font-bold">Pedido #{order.id.split("-")[1]}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(order.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge
+                            className={
+                              order.status === "completed"
+                                ? "bg-green-500"
+                                : order.status === "cancelled"
+                                  ? "bg-red-500"
+                                  : "bg-yellow-500"
+                            }
+                          >
+                            {order.status === "completed"
+                              ? "Completado"
                               : order.status === "cancelled"
-                                ? "bg-red-500"
-                                : "bg-yellow-500"
-                          }
-                        >
-                          {order.status === "completed"
-                            ? "Completado"
-                            : order.status === "cancelled"
-                              ? "Cancelado"
-                              : "Pendiente"}
-                        </Badge>
-                      </div>
+                                ? "Cancelado"
+                                : "Pendiente"}
+                          </Badge>
+                        </div>
 
-                      <div className="mb-4">
-                        <p>
-                          <strong>Cliente:</strong> {order.customerName}
-                        </p>
-                        <p>
-                          <strong>Teléfono:</strong> {order.customerPhone}
-                        </p>
-                        {order.customerAddress && (
+                        <div className="mb-4">
                           <p>
-                            <strong>Dirección:</strong> {order.customerAddress}
+                            <strong>Cliente:</strong> {order.customerName}
                           </p>
+                          <p>
+                            <strong>Teléfono:</strong> {order.customerPhone}
+                          </p>
+                          {order.customerAddress && (
+                            <p>
+                              <strong>Dirección:</strong> {order.customerAddress}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mb-4">
+                          <h4 className="font-semibold mb-2">Productos:</h4>
+                          <ul className="space-y-2">
+                            {order.items.map((item, index) => (
+                              <li key={index} className="flex justify-between">
+                                <span>
+                                  {item.quantity}x {item.name}
+                                  {item.withDrink && " (con gaseosa)"}
+                                </span>
+                                <span>${(item.price * item.quantity).toLocaleString()}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="border-t mt-2 pt-2 font-bold flex justify-between">
+                            <span>Total:</span>
+                            <span>${order.total.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {order.status === "pending" && (
+                          <div className="flex space-x-2">
+                            <Button
+                              className="bg-green-500 hover:bg-green-600"
+                              onClick={() => handleStatusChange(order.id, "completed")}
+                            >
+                              Completar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="text-red-500 border-red-500 hover:bg-red-50"
+                              onClick={() => handleStatusChange(order.id, "cancelled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
                         )}
                       </div>
-
-                      <div className="mb-4">
-                        <h4 className="font-semibold mb-2">Productos:</h4>
-                        <ul className="space-y-2">
-                          {order.items.map((item, index) => (
-                            <li key={index} className="flex justify-between">
-                              <span>
-                                {item.quantity}x {item.name}
-                                {item.withDrink && " (con gaseosa)"}
-                              </span>
-                              <span>${(item.price * item.quantity).toLocaleString()}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="border-t mt-2 pt-2 font-bold flex justify-between">
-                          <span>Total:</span>
-                          <span>${order.total.toLocaleString()}</span>
-                        </div>
-                      </div>
-
-                      {order.status === "pending" && (
-                        <div className="flex space-x-2">
-                          <Button
-                            className="bg-green-500 hover:bg-green-600"
-                            onClick={() => handleStatusChange(order.id, "completed")}
-                          >
-                            Completar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="text-red-500 border-red-500 hover:bg-red-50"
-                            onClick={() => handleStatusChange(order.id, "cancelled")}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
+                    ))
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
