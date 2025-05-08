@@ -12,6 +12,9 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Empanadas y Arepas - Deliciosos Productos",
   description: "Tienda online de empanadas, pasteles y arepas",
+  icons: {
+    icon: "/favicon.ico",
+  },
     generator: 'v0.dev'
 }
 
@@ -22,6 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <CartProvider>
           <Header />

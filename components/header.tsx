@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { ShoppingCart, Menu, X, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/context/cart-context"
@@ -17,8 +18,11 @@ export default function Header() {
     <header className="bg-orange-600 text-white shadow-md">
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold">
-            Empanadas & Arepas
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="relative w-10 h-10">
+              <Image src="/logo.png" alt="Logo" width={40} height={40} className="object-contain" />
+            </div>
+            <span className="text-2xl font-bold">Empanadas & Arepas</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">

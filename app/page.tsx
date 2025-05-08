@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import ProductCard from "@/components/product-card"
 import { products } from "@/lib/products"
@@ -7,12 +8,21 @@ export default function Home() {
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="bg-amber-100 rounded-lg p-6 mb-8">
-        <h1 className="text-4xl font-bold text-amber-900 mb-2">¡Deliciosas Empanadas, Pasteles y Arepas!</h1>
-        <p className="text-lg text-amber-800">Los mejores sabores tradicionales, hechos con ingredientes frescos.</p>
-        <div className="mt-4">
-          <Link href="/productos">
-            <Button className="bg-orange-500 hover:bg-orange-600">Ver Menú Completo</Button>
-          </Link>
+        <div className="flex flex-col md:flex-row items-center justify-between">
+          <div className="mb-4 md:mb-0 md:mr-6">
+            <h1 className="text-4xl font-bold text-amber-900 mb-2">¡Deliciosas Empanadas, Pasteles y Arepas!</h1>
+            <p className="text-lg text-amber-800">
+              Los mejores sabores tradicionales, hechos con ingredientes frescos.
+            </p>
+            <div className="mt-4">
+              <Link href="/productos">
+                <Button className="bg-orange-500 hover:bg-orange-600">Ver Menú Completo</Button>
+              </Link>
+            </div>
+          </div>
+          <div className="relative w-32 h-32 md:w-40 md:h-40">
+            <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,15 @@
+import Image from "next/image"
+
 export default function Footer() {
   return (
     <footer className="bg-amber-800 text-amber-100 py-8">
       <div className="container mx-auto px-4">
+        <div className="flex justify-center mb-6">
+          <div className="relative w-16 h-16">
+            <Image src="/logo.png" alt="Logo" width={64} height={64} className="object-contain" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <h3 className="text-xl font-bold mb-4">Empanadas & Arepas</h3>

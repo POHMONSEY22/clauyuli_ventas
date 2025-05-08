@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import Image from "next/image"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -43,11 +43,14 @@ export default function AdminLoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Acceso Administrador</CardTitle>
-          <CardDescription className="text-center">
-            Ingresa tus credenciales para acceder al panel de administración
-          </CardDescription>
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="relative w-20 h-20">
+              <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl">Acceso Administrador</CardTitle>
+          <CardDescription>Ingresa tus credenciales para acceder al panel de administración</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
