@@ -45,8 +45,11 @@ export default function AdminLoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="relative w-48 h-16">
-              <Image src="/logo-text.jpeg" alt="Logo" fill className="object-contain" />
+            <div className="flex items-center space-x-3">
+              <div className="relative w-16 h-16">
+                <Image src="/logo-arepa.png" alt="Logo" width={64} height={64} className="object-contain" />
+              </div>
+              <span className="text-2xl font-bold">Empanadas & Arepas</span>
             </div>
           </div>
           <CardTitle className="text-2xl">Acceso Administrador</CardTitle>

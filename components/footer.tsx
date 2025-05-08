@@ -5,8 +5,11 @@ export default function Footer() {
     <footer className="bg-amber-800 text-amber-100 py-8">
       <div className="container mx-auto px-4">
         <div className="flex justify-center mb-6">
-          <div className="relative h-16 w-64">
-            <Image src="/logo-text.jpeg" alt="Empanadas y Arepas" fill className="object-contain" />
+          <div className="flex items-center space-x-3">
+            <div className="relative w-16 h-16">
+              <Image src="/logo-arepa.png" alt="Logo" width={64} height={64} className="object-contain" />
+            </div>
+            <span className="text-2xl font-bold">Empanadas & Arepas</span>
           </div>
         </div>
 

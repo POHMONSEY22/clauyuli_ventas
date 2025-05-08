@@ -21,7 +21,7 @@ export default function Home() {
             </div>
           </div>
           <div className="relative w-40 h-40 md:w-48 md:h-48">
-            <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+            <Image src="/logo-arepa.png" alt="Logo" fill className="object-contain" />
           </div>
         </div>
       </div>
