@@ -120,8 +120,14 @@ export default function CarritoPage() {
               key={`${item.id}-${item.withDrink ? "drink" : "no-drink"}`}
               className="flex items-center border-b py-4"
             >
-              <div className="w-20 h-20 relative mr-4">
-                <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover rounded" />
+              <div className="w-24 h-24 relative mr-4 rounded-md overflow-hidden">
+                <Image
+                  src={item.image || "/placeholder.svg"}
+                  alt={item.name}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                />
               </div>
 
               <div className="flex-grow">

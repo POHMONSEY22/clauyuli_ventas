@@ -33,8 +33,15 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="relative h-48">
-        <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+      <div className="relative h-64">
+        <Image
+          src={product.image || "/placeholder.svg"}
+          alt={product.name}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          priority={product.category === "arepa"}
+        />
       </div>
 
       <div className="p-4">
