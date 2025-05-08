@@ -18,9 +18,14 @@ export default function AdminDashboardPage() {
 
   // Función para cargar datos
   const loadData = () => {
-    const allOrders = getOrders()
-    setOrders(allOrders)
-    setStats(getSalesStats())
+    try {
+      const allOrders = getOrders()
+      setOrders(allOrders)
+      setStats(getSalesStats())
+      console.log("Pedidos cargados:", allOrders.length)
+    } catch (error) {
+      console.error("Error al cargar datos:", error)
+    }
   }
 
   useEffect(() => {
@@ -65,15 +70,20 @@ export default function AdminDashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Panel de Administración</h1>
-        <Button variant="outline" onClick={handleLogout}>
-          Cerrar Sesión
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={loadData}>
+            Actualizar Datos
+          </Button>
+          <Button variant="outline" onClick={handleLogout}>
+            Cerrar Sesión
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="dashboard">
+      <Tabs defaultValue="orders">
         <TabsList className="mb-6">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="orders">Pedidos</TabsTrigger>
+          <TabsTrigger value="orders">Pedidos ({orders.length})</TabsTrigger>
           <TabsTrigger value="products">Productos</TabsTrigger>
         </TabsList>
 

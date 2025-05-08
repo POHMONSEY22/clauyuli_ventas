@@ -52,16 +52,36 @@ export default function CarritoPage() {
       const result = await createOrder(formData)
 
       if (result.success) {
+        // Guardar el pedido en localStorage para que el admin pueda verlo
+        const order = {
+          id: result.orderId,
+          customerName: customerInfo.name,
+          customerPhone: customerInfo.phone,
+          customerAddress: customerInfo.address || undefined,
+          items: cart,
+          total: subtotal,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        }
+
+        // Obtener pedidos existentes
+        const savedOrders = localStorage.getItem("orders")
+        const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
+
+        // Añadir el nuevo pedido
+        localStorage.setItem("orders", JSON.stringify([...existingOrders, order]))
+
         toast({
           title: "¡Pedido realizado!",
           description: "Tu pedido ha sido recibido y será procesado pronto.",
         })
+
         clearCart()
         router.push("/gracias")
       } else {
         toast({
           title: "Error",
-          description: result.message,
+          description: result.message || "Ocurrió un error al procesar tu pedido.",
           variant: "destructive",
         })
       }
