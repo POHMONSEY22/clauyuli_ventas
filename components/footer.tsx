@@ -22,14 +22,13 @@ export default function Footer() {
 
           <div>
             <h3 className="text-xl font-bold mb-4">Horario</h3>
-            <p className="mb-2">Lunes a Viernes: 10:00 AM - 8:00 PM</p>
-            <p>Sábados y Domingos: 11:00 AM - 9:00 PM</p>
+            <p className="mb-2">Martes y Jueves: 7:00 PM - 9:00 PM</p>
+            <p>Domingos: 7:00 AM - 11:00 AM</p>
           </div>
 
           <div>
             <h3 className="text-xl font-bold mb-4">Contacto</h3>
-            <p className="mb-2">Teléfono: (123) 456-7890</p>
-            <p>Email: info@empanadasarepas.com</p>
+            <p>Teléfono: +57 302 2346701</p>
           </div>
         </div>
 
