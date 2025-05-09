@@ -1,4 +1,6 @@
 // Implementación de una capa de abstracción para IndexedDB
+import { createBackup as _createBackup, restoreFromBackup, hasBackup } from "./internal-db"
+
 export interface DBSchema {
   orders: {
     key: string
@@ -210,42 +212,86 @@ export async function syncOrders(): Promise<void> {
     // Obtener pedidos de localStorage
     const localOrders = getOrdersFromLocalStorage()
 
-    // Si no hay pedidos en localStorage, no hay nada que sincronizar
-    if (localOrders.length === 0) {
-      return
-    }
-
     // Obtener pedidos de IndexedDB
     const dbOrders = await getAllOrdersFromDB()
 
-    // Crear un mapa de pedidos por ID para facilitar la búsqueda
-    const orderMap = new Map()
-    dbOrders.forEach((order) => {
-      orderMap.set(order.id, order)
-    })
+    // Verificar si hay una copia de seguridad disponible
+    if (hasBackup()) {
+      // Restaurar desde la copia de seguridad
+      const backupOrders = await restoreFromBackup()
 
-    // Sincronizar pedidos de localStorage a IndexedDB
-    const syncPromises = localOrders.map(async (order) => {
-      if (!orderMap.has(order.id)) {
-        // Si el pedido no existe en IndexedDB, añadirlo
-        await saveOrderToDB(order)
-      } else {
-        // Si existe, verificar cuál es más reciente (por fecha de creación o actualización)
-        const dbOrder = orderMap.get(order.id)
+      // Combinar pedidos de todas las fuentes
+      const allOrdersMap = new Map()
 
-        // Si el pedido local es más reciente o tiene un estado diferente, actualizarlo en IndexedDB
-        if (new Date(order.createdAt) > new Date(dbOrder.createdAt) || order.status !== dbOrder.status) {
-          await updateOrderInDB(order)
+      // Primero añadir pedidos de la copia de seguridad
+      backupOrders.forEach((order: any) => {
+        allOrdersMap.set(order.id, order)
+      })
+
+      // Luego añadir pedidos de IndexedDB (pueden sobrescribir los de la copia de seguridad si son más recientes)
+      dbOrders.forEach((order) => {
+        const existingOrder = allOrdersMap.get(order.id)
+        if (!existingOrder || new Date(order.createdAt) > new Date(existingOrder.createdAt)) {
+          allOrdersMap.set(order.id, order)
         }
+      })
+
+      // Finalmente añadir pedidos de localStorage (pueden sobrescribir los anteriores si son más recientes)
+      localOrders.forEach((order: any) => {
+        const existingOrder = allOrdersMap.get(order.id)
+        if (!existingOrder || new Date(order.createdAt) > new Date(existingOrder.createdAt)) {
+          allOrdersMap.set(order.id, order)
+        }
+      })
+
+      // Convertir el mapa a un array
+      const combinedOrders = Array.from(allOrdersMap.values())
+
+      // Actualizar IndexedDB con todos los pedidos combinados
+      for (const order of combinedOrders) {
+        await saveOrderToDB(order)
       }
-    })
 
-    await Promise.all(syncPromises)
+      // Actualizar localStorage
+      localStorage.setItem("orders", JSON.stringify(combinedOrders))
 
-    // Sincronizar pedidos de IndexedDB a localStorage
-    // Esto asegura que localStorage tenga todos los pedidos que están en IndexedDB
-    const allDbOrders = await getAllOrdersFromDB()
-    localStorage.setItem("orders", JSON.stringify(allDbOrders))
+      // Crear una nueva copia de seguridad con todos los datos
+      await _createBackup(combinedOrders)
+    } else {
+      // Si no hay copia de seguridad, crear una con los datos actuales
+
+      // Crear un mapa de pedidos por ID para facilitar la búsqueda
+      const orderMap = new Map()
+      dbOrders.forEach((order) => {
+        orderMap.set(order.id, order)
+      })
+
+      // Sincronizar pedidos de localStorage a IndexedDB
+      const syncPromises = localOrders.map(async (order) => {
+        if (!orderMap.has(order.id)) {
+          // Si el pedido no existe en IndexedDB, añadirlo
+          await saveOrderToDB(order)
+        } else {
+          // Si existe, verificar cuál es más reciente (por fecha de creación o actualización)
+          const dbOrder = orderMap.get(order.id)
+
+          // Si el pedido local es más reciente o tiene un estado diferente, actualizarlo en IndexedDB
+          if (new Date(order.createdAt) > new Date(dbOrder.createdAt) || order.status !== dbOrder.status) {
+            await updateOrderInDB(order)
+          }
+        }
+      })
+
+      await Promise.all(syncPromises)
+
+      // Sincronizar pedidos de IndexedDB a localStorage
+      // Esto asegura que localStorage tenga todos los pedidos que están en IndexedDB
+      const allDbOrders = await getAllOrdersFromDB()
+      localStorage.setItem("orders", JSON.stringify(allDbOrders))
+
+      // Crear una copia de seguridad con todos los datos
+      await _createBackup(allDbOrders)
+    }
 
     console.log("Sincronización completada con éxito")
   } catch (error) {
@@ -258,3 +304,48 @@ export async function syncOrders(): Promise<void> {
 export function isIndexedDBSupported(): boolean {
   return typeof window !== "undefined" && "indexedDB" in window
 }
+
+// Función para realizar una copia de seguridad manual
+export async function performBackup(): Promise<boolean> {
+  try {
+    // Obtener todos los pedidos
+    const orders = await getAllOrdersFromDB()
+
+    // Crear la copia de seguridad
+    await _createBackup(orders)
+
+    return true
+  } catch (error) {
+    console.error("Error al realizar copia de seguridad manual:", error)
+    return false
+  }
+}
+
+// Función para restaurar desde la copia de seguridad
+export async function restoreDatabase(): Promise<boolean> {
+  try {
+    // Restaurar desde la copia de seguridad
+    const orders = await restoreFromBackup()
+
+    if (orders.length === 0) {
+      console.warn("No hay datos para restaurar")
+      return false
+    }
+
+    // Guardar cada pedido en IndexedDB
+    for (const order of orders) {
+      await saveOrderToDB(order)
+    }
+
+    // Actualizar localStorage
+    localStorage.setItem("orders", JSON.stringify(orders))
+
+    console.log(`Base de datos restaurada con ${orders.length} pedidos`)
+    return true
+  } catch (error) {
+    console.error("Error al restaurar la base de datos:", error)
+    return false
+  }
+}
+
+export const createBackup = _createBackup

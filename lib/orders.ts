@@ -1,7 +1,14 @@
 "use client"
 
 import type { CartItem } from "./types"
-import { saveOrderToDB, getAllOrdersFromDB, updateOrderInDB, syncOrders, isIndexedDBSupported } from "./db"
+import {
+  saveOrderToDB,
+  getAllOrdersFromDB,
+  updateOrderInDB,
+  syncOrders,
+  isIndexedDBSupported,
+  performBackup,
+} from "./db"
 
 export interface Order {
   id: string
@@ -27,6 +34,9 @@ export async function saveOrder(order: Omit<Order, "id" | "createdAt" | "status"
     // Intentar guardar en IndexedDB primero
     if (isIndexedDBSupported()) {
       await saveOrderToDB(newOrder)
+
+      // Crear una copia de seguridad automática
+      await performBackup()
     } else {
       // Si IndexedDB no está soportado, guardar solo en localStorage
       const savedOrders = localStorage.getItem("orders")
@@ -87,6 +97,9 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
     // Actualizar en IndexedDB si está disponible
     if (isIndexedDBSupported()) {
       await updateOrderInDB(updatedOrder)
+
+      // Crear una copia de seguridad automática después de actualizar
+      await performBackup()
     }
 
     // También actualizar en localStorage

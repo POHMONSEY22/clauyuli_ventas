@@ -2,26 +2,48 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { InfoIcon, DatabaseIcon, RefreshCw, CheckCircle, XCircle } from "lucide-react"
+import { InfoIcon, DatabaseIcon, RefreshCw, CheckCircle, XCircle, Save, Download, Upload, Clock } from "lucide-react"
 import Link from "next/link"
-import { syncOrders, getAllOrdersFromDB } from "@/lib/db"
+import {
+  syncOrders,
+  getAllOrdersFromDB,
+  performBackup,
+  restoreDatabase,
+  isIndexedDBSupported,
+  saveOrderToDB,
+  createBackup,
+} from "@/lib/db"
+import { getBackupInfo, exportDataAsJSON, importDataFromJSON } from "@/lib/internal-db"
 
 export default function AdminSystemPage() {
   const [dbSupported, setDbSupported] = useState<boolean | null>(null)
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle")
+  const [backupStatus, setBackupStatus] = useState<"idle" | "creating" | "success" | "error">("idle")
+  const [restoreStatus, setRestoreStatus] = useState<"idle" | "restoring" | "success" | "error">("idle")
   const [orderCount, setOrderCount] = useState<number | null>(null)
   const [dbOrderCount, setDbOrderCount] = useState<number | null>(null)
   const [localOrderCount, setLocalOrderCount] = useState<number | null>(null)
+  const [backupInfo, setBackupInfo] = useState<{ exists: boolean; timestamp?: Date; orderCount?: number }>({
+    exists: false,
+  })
+  const [exportUrl, setExportUrl] = useState<string | null>(null)
 
   useEffect(() => {
     // Verificar si IndexedDB es soportado
-    const isIndexedDBSupported = typeof window !== "undefined" && "indexedDB" in window
-    setDbSupported(isIndexedDBSupported)
+    const isIDBSupported = isIndexedDBSupported()
+    setDbSupported(isIDBSupported)
 
     // Cargar datos
     loadData()
+
+    // Limpiar URL de exportación al desmontar
+    return () => {
+      if (exportUrl) {
+        URL.revokeObjectURL(exportUrl)
+      }
+    }
   }, [])
 
   const loadData = async () => {
@@ -55,6 +77,10 @@ export default function AdminSystemPage() {
         setDbOrderCount(0)
         setOrderCount(localOrderCount)
       }
+
+      // Obtener información de la copia de seguridad
+      const info = getBackupInfo()
+      setBackupInfo(info)
     } catch (error) {
       console.error("Error al cargar datos:", error)
     }
@@ -79,6 +105,145 @@ export default function AdminSystemPage() {
         setSyncStatus("idle")
       }, 3000)
     }
+  }
+
+  const handleBackup = async () => {
+    setBackupStatus("creating")
+    try {
+      const success = await performBackup()
+
+      if (success) {
+        setBackupStatus("success")
+        // Recargar datos para actualizar la información de la copia de seguridad
+        await loadData()
+      } else {
+        setBackupStatus("error")
+      }
+
+      setTimeout(() => {
+        setBackupStatus("idle")
+      }, 3000)
+    } catch (error) {
+      console.error("Error al crear copia de seguridad:", error)
+      setBackupStatus("error")
+      setTimeout(() => {
+        setBackupStatus("idle")
+      }, 3000)
+    }
+  }
+
+  const handleRestore = async () => {
+    setRestoreStatus("restoring")
+    try {
+      const success = await restoreDatabase()
+
+      if (success) {
+        setRestoreStatus("success")
+        // Recargar datos para mostrar los cambios
+        await loadData()
+      } else {
+        setRestoreStatus("error")
+      }
+
+      setTimeout(() => {
+        setRestoreStatus("idle")
+      }, 3000)
+    } catch (error) {
+      console.error("Error al restaurar base de datos:", error)
+      setRestoreStatus("error")
+      setTimeout(() => {
+        setRestoreStatus("idle")
+      }, 3000)
+    }
+  }
+
+  const handleExportData = async () => {
+    try {
+      // Obtener todos los pedidos
+      const orders = await getAllOrdersFromDB()
+
+      // Crear un objeto con todos los datos a exportar
+      const exportData = {
+        orders,
+        exportDate: new Date().toISOString(),
+        version: "1.0",
+      }
+
+      // Convertir a JSON
+      const jsonString = exportDataAsJSON(exportData)
+
+      // Crear un blob con los datos
+      const blob = new Blob([jsonString], { type: "application/json" })
+
+      // Crear URL para descargar
+      const url = URL.createObjectURL(blob)
+      setExportUrl(url)
+
+      // Crear un elemento de enlace y simular clic para descargar
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `empanadas-arepas-backup-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error("Error al exportar datos:", error)
+      alert("Error al exportar datos. Por favor, intenta de nuevo.")
+    }
+  }
+
+  const handleImportData = () => {
+    // Crear un input de archivo oculto
+    const fileInput = document.createElement("input")
+    fileInput.type = "file"
+    fileInput.accept = ".json"
+
+    fileInput.onchange = async (e: any) => {
+      try {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const reader = new FileReader()
+
+        reader.onload = async (event) => {
+          try {
+            const jsonString = event.target?.result as string
+            const importedData = importDataFromJSON(jsonString)
+
+            if (!importedData.orders || !Array.isArray(importedData.orders)) {
+              throw new Error("Formato de archivo inválido")
+            }
+
+            // Guardar cada pedido en la base de datos
+            for (const order of importedData.orders) {
+              await saveOrderToDB(order)
+            }
+
+            // Actualizar localStorage
+            localStorage.setItem("orders", JSON.stringify(importedData.orders))
+
+            // Crear una copia de seguridad con los datos importados
+            await createBackup(importedData.orders)
+
+            // Recargar datos
+            await loadData()
+
+            alert(`Importación exitosa. Se importaron ${importedData.orders.length} pedidos.`)
+          } catch (error) {
+            console.error("Error al procesar archivo importado:", error)
+            alert("Error al importar datos. El archivo podría estar dañado o tener un formato incorrecto.")
+          }
+        }
+
+        reader.readAsText(file)
+      } catch (error) {
+        console.error("Error al importar datos:", error)
+        alert("Error al importar datos. Por favor, intenta de nuevo.")
+      }
+    }
+
+    // Simular clic en el input
+    fileInput.click()
   }
 
   return (
@@ -156,49 +321,161 @@ export default function AdminSystemPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <InfoIcon className="mr-2 h-5 w-5" />
-              Información del Sistema
+              <Save className="mr-2 h-5 w-5" />
+              Copia de Seguridad
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <p>
-                Esta aplicación utiliza tecnologías modernas de almacenamiento para asegurar que los pedidos estén
-                disponibles en todos los dispositivos.
-              </p>
-              <p>
-                Si estás experimentando problemas con los pedidos no apareciendo en diferentes dispositivos, puedes usar
-                el botón "Sincronizar Datos" para forzar una sincronización.
-              </p>
-              <Alert className="mt-4">
-                <InfoIcon className="h-4 w-4" />
-                <AlertTitle>Importante</AlertTitle>
-                <AlertDescription>
-                  Para asegurar que los pedidos estén disponibles en todos tus dispositivos, recomendamos sincronizar
-                  regularmente tus datos usando el botón "Sincronizar Datos".
-                </AlertDescription>
-              </Alert>
+              <div className="flex justify-between items-center">
+                <span>Copia de seguridad disponible:</span>
+                <span className={`font-bold ${backupInfo.exists ? "text-green-500" : "text-red-500"}`}>
+                  {backupInfo.exists ? "Sí" : "No"}
+                </span>
+              </div>
+
+              {backupInfo.exists && (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span>Fecha de la copia:</span>
+                    <span className="font-bold">{backupInfo.timestamp?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Pedidos en la copia:</span>
+                    <span className="font-bold">{backupInfo.orderCount}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <Button
+                  onClick={handleBackup}
+                  disabled={backupStatus !== "idle"}
+                  className="w-full bg-blue-500 hover:bg-blue-600"
+                >
+                  {backupStatus === "creating" ? (
+                    <>
+                      <Save className="mr-2 h-4 w-4 animate-pulse" />
+                      Creando copia...
+                    </>
+                  ) : backupStatus === "success" ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      ¡Copia creada!
+                    </>
+                  ) : backupStatus === "error" ? (
+                    <>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Error al crear copia
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Crear Copia de Seguridad
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleRestore}
+                  disabled={!backupInfo.exists || restoreStatus !== "idle"}
+                  className="w-full bg-green-500 hover:bg-green-600"
+                >
+                  {restoreStatus === "restoring" ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Restaurando...
+                    </>
+                  ) : restoreStatus === "success" ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      ¡Restauración exitosa!
+                    </>
+                  ) : restoreStatus === "error" ? (
+                    <>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Error al restaurar
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="mr-2 h-4 w-4" />
+                      Restaurar desde Copia
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Exportar e Importar Datos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">
+            Puedes exportar todos los datos de la aplicación a un archivo JSON para hacer una copia de seguridad
+            externa. También puedes importar datos desde un archivo JSON previamente exportado.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button onClick={handleExportData} className="bg-blue-500 hover:bg-blue-600">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Datos (JSON)
+            </Button>
+            <Button onClick={handleImportData} className="bg-green-500 hover:bg-green-600">
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Datos (JSON)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Alert className="mb-6">
+        <InfoIcon className="h-4 w-4" />
+        <AlertTitle>Información Importante</AlertTitle>
+        <AlertDescription>
+          <p className="mb-2">
+            El sistema utiliza múltiples capas de almacenamiento para garantizar que tus datos estén seguros:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>IndexedDB: Base de datos principal del navegador</li>
+            <li>localStorage: Almacenamiento de respaldo</li>
+            <li>Copia de seguridad interna: Respaldo adicional que puedes restaurar manualmente</li>
+            <li>Exportación: Te permite guardar tus datos en un archivo externo</li>
+          </ul>
+          <p className="mt-2">Para asegurar que tus datos estén disponibles en todos tus dispositivos, recomendamos:</p>
+          <ol className="list-decimal pl-5 space-y-1 mt-1">
+            <li>Crear copias de seguridad regularmente</li>
+            <li>Exportar tus datos periódicamente</li>
+            <li>Sincronizar la base de datos antes y después de realizar cambios importantes</li>
+          </ol>
+        </AlertDescription>
+      </Alert>
 
       <Card>
         <CardHeader>
           <CardTitle>Acciones del Sistema</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button onClick={loadData} className="bg-blue-500 hover:bg-blue-600">
               <RefreshCw className="mr-2 h-4 w-4" />
               Actualizar Información
             </Button>
-            <Button onClick={handleSync} className="bg-green-500 hover:bg-green-600">
+            <Button onClick={handleSync} className="bg-orange-500 hover:bg-orange-600">
               <DatabaseIcon className="mr-2 h-4 w-4" />
               Sincronizar Base de Datos
             </Button>
+            <Button onClick={handleBackup} className="bg-green-500 hover:bg-green-600">
+              <Save className="mr-2 h-4 w-4" />
+              Crear Copia de Seguridad
+            </Button>
           </div>
         </CardContent>
+        <CardFooter className="border-t pt-4">
+          <p className="text-sm text-gray-500">Última actualización: {new Date().toLocaleString()}</p>
+        </CardFooter>
       </Card>
     </div>
   )

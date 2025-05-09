@@ -10,15 +10,18 @@ import { logoutAdmin } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import { products } from "@/lib/products"
 import type { Order } from "@/lib/orders"
-import { syncOrders } from "@/lib/db"
-import { DatabaseIcon, LogOut, RefreshCw, Settings } from "lucide-react"
+import { syncOrders, performBackup } from "@/lib/db"
+import { DatabaseIcon, LogOut, RefreshCw, Settings, Save } from "lucide-react"
 import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getBackupInfo } from "@/lib/internal-db"
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle")
+  const [backupInfo, setBackupInfo] = useState<{ exists: boolean; timestamp?: Date }>({ exists: false })
   const router = useRouter()
 
   // Función para cargar datos
@@ -40,6 +43,10 @@ export default function AdminDashboardPage() {
       // Y finalmente obtener las estadísticas
       const salesStats = await getSalesStats()
       setStats(salesStats)
+
+      // Obtener información de la copia de seguridad
+      const info = getBackupInfo()
+      setBackupInfo(info)
 
       console.log("Pedidos cargados:", allOrders.length)
     } catch (error) {
@@ -91,6 +98,19 @@ export default function AdminDashboardPage() {
     }
   }
 
+  const handleBackup = async () => {
+    try {
+      await performBackup()
+      // Recargar datos para actualizar la información de la copia de seguridad
+      const info = getBackupInfo()
+      setBackupInfo(info)
+      alert("Copia de seguridad creada correctamente")
+    } catch (error) {
+      console.error("Error al crear copia de seguridad:", error)
+      alert("Error al crear copia de seguridad")
+    }
+  }
+
   const getProductNameById = (id: string) => {
     const product = products.find((p) => p.id === id)
     return product ? product.name : id
@@ -130,6 +150,11 @@ export default function AdminDashboardPage() {
             )}
           </Button>
 
+          <Button variant="outline" onClick={handleBackup} className="flex items-center">
+            <Save className="mr-2 h-4 w-4" />
+            Crear Backup
+          </Button>
+
           <Link href="/admin/system">
             <Button variant="outline" className="flex items-center">
               <Settings className="mr-2 h-4 w-4" />
@@ -143,6 +168,36 @@ export default function AdminDashboardPage() {
           </Button>
         </div>
       </div>
+
+      {backupInfo.exists && (
+        <Alert className="mb-6 bg-green-50 border-green-200">
+          <DatabaseIcon className="h-4 w-4 text-green-500" />
+          <AlertTitle>Base de datos respaldada</AlertTitle>
+          <AlertDescription>
+            Tienes una copia de seguridad creada el {backupInfo.timestamp?.toLocaleString()}. Puedes restaurarla en
+            cualquier momento desde la sección de{" "}
+            <Link href="/admin/system" className="text-blue-500 underline">
+              Sistema
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!backupInfo.exists && (
+        <Alert className="mb-6 bg-yellow-50 border-yellow-200">
+          <DatabaseIcon className="h-4 w-4 text-yellow-500" />
+          <AlertTitle>Sin copia de seguridad</AlertTitle>
+          <AlertDescription>
+            No tienes ninguna copia de seguridad de tus datos. Te recomendamos crear una haciendo clic en el botón
+            "Crear Backup" o visitar la sección de{" "}
+            <Link href="/admin/system" className="text-blue-500 underline">
+              Sistema
+            </Link>{" "}
+            para más opciones.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="orders">
         <TabsList className="mb-6">
