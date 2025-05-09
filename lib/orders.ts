@@ -1,7 +1,7 @@
 "use client"
 
 import type { CartItem } from "./types"
-import { saveOrderToDB, getAllOrdersFromDB, updateOrderInDB, syncOrders } from "./db"
+import { saveOrderToDB, getAllOrdersFromDB, updateOrderInDB, syncOrders, isIndexedDBSupported } from "./db"
 
 export interface Order {
   id: string
@@ -24,19 +24,21 @@ export async function saveOrder(order: Omit<Order, "id" | "createdAt" | "status"
   }
 
   try {
-    // Guardar en IndexedDB
-    await saveOrderToDB(newOrder)
-
-    // También guardar en localStorage como respaldo
-    const savedOrders = localStorage.getItem("orders")
-    const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
-    localStorage.setItem("orders", JSON.stringify([...existingOrders, newOrder]))
+    // Intentar guardar en IndexedDB primero
+    if (isIndexedDBSupported()) {
+      await saveOrderToDB(newOrder)
+    } else {
+      // Si IndexedDB no está soportado, guardar solo en localStorage
+      const savedOrders = localStorage.getItem("orders")
+      const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
+      localStorage.setItem("orders", JSON.stringify([...existingOrders, newOrder]))
+    }
 
     return newOrder
   } catch (error) {
     console.error("Error al guardar el pedido:", error)
 
-    // Si falla IndexedDB, al menos guardar en localStorage
+    // Si falla, asegurar que al menos se guarde en localStorage
     const savedOrders = localStorage.getItem("orders")
     const existingOrders = savedOrders ? JSON.parse(savedOrders) : []
     localStorage.setItem("orders", JSON.stringify([...existingOrders, newOrder]))
@@ -49,11 +51,16 @@ export async function saveOrder(order: Omit<Order, "id" | "createdAt" | "status"
 export async function getOrders(): Promise<Order[]> {
   try {
     // Intentar sincronizar pedidos primero
-    await syncOrders()
-
-    // Obtener pedidos de IndexedDB
-    const orders = await getAllOrdersFromDB()
-    return orders
+    if (isIndexedDBSupported()) {
+      await syncOrders()
+      // Obtener pedidos de IndexedDB
+      const orders = await getAllOrdersFromDB()
+      return orders
+    } else {
+      // Fallback a localStorage
+      const savedOrders = localStorage.getItem("orders")
+      return savedOrders ? JSON.parse(savedOrders) : []
+    }
   } catch (error) {
     console.error("Error al obtener pedidos:", error)
 
@@ -77,8 +84,10 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
       status,
     }
 
-    // Actualizar en IndexedDB
-    await updateOrderInDB(updatedOrder)
+    // Actualizar en IndexedDB si está disponible
+    if (isIndexedDBSupported()) {
+      await updateOrderInDB(updatedOrder)
+    }
 
     // También actualizar en localStorage
     localStorage.setItem(

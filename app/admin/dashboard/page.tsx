@@ -11,11 +11,14 @@ import { Badge } from "@/components/ui/badge"
 import { products } from "@/lib/products"
 import type { Order } from "@/lib/orders"
 import { syncOrders } from "@/lib/db"
+import { DatabaseIcon, LogOut, RefreshCw, Settings } from "lucide-react"
+import Link from "next/link"
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle")
   const router = useRouter()
 
   // Función para cargar datos
@@ -24,6 +27,11 @@ export default function AdminDashboardPage() {
     try {
       // Primero sincronizar pedidos entre localStorage e IndexedDB
       await syncOrders()
+      setSyncStatus("success")
+
+      setTimeout(() => {
+        setSyncStatus("idle")
+      }, 2000)
 
       // Luego obtener todos los pedidos
       const allOrders = await getOrders()
@@ -36,6 +44,11 @@ export default function AdminDashboardPage() {
       console.log("Pedidos cargados:", allOrders.length)
     } catch (error) {
       console.error("Error al cargar datos:", error)
+      setSyncStatus("error")
+
+      setTimeout(() => {
+        setSyncStatus("idle")
+      }, 2000)
     } finally {
       setIsLoading(false)
     }
@@ -88,10 +101,44 @@ export default function AdminDashboardPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Panel de Administración</h1>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={loadData} disabled={isLoading}>
-            {isLoading ? "Cargando..." : "Actualizar Datos"}
+          <Button
+            variant="outline"
+            onClick={loadData}
+            disabled={isLoading || syncStatus !== "idle"}
+            className="flex items-center"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Cargando...
+              </>
+            ) : syncStatus === "success" ? (
+              <>
+                <DatabaseIcon className="mr-2 h-4 w-4 text-green-500" />
+                Datos Sincronizados
+              </>
+            ) : syncStatus === "error" ? (
+              <>
+                <DatabaseIcon className="mr-2 h-4 w-4 text-red-500" />
+                Error al Sincronizar
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Actualizar Datos
+              </>
+            )}
           </Button>
-          <Button variant="outline" onClick={handleLogout}>
+
+          <Link href="/admin/system">
+            <Button variant="outline" className="flex items-center">
+              <Settings className="mr-2 h-4 w-4" />
+              Sistema
+            </Button>
+          </Link>
+
+          <Button variant="outline" onClick={handleLogout} className="flex items-center">
+            <LogOut className="mr-2 h-4 w-4" />
             Cerrar Sesión
           </Button>
         </div>
