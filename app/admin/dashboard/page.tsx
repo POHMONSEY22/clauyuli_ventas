@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { products } from "@/lib/products"
 import type { Order } from "@/lib/orders"
 import { syncOrders, performBackup } from "@/lib/db"
-import { DatabaseIcon, LogOut, RefreshCw, Settings, Save } from "lucide-react"
+import { DatabaseIcon, LogOut, RefreshCw, Settings, Save, FileText, Download } from "lucide-react"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getBackupInfo } from "@/lib/internal-db"
+import { exportOrdersToExcel, exportSalesStatsToExcel } from "@/lib/excel-export"
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -22,6 +23,7 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle")
   const [backupInfo, setBackupInfo] = useState<{ exists: boolean; timestamp?: Date }>({ exists: false })
+  const [exportingExcel, setExportingExcel] = useState(false)
   const router = useRouter()
 
   // Función para cargar datos
@@ -108,6 +110,30 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error("Error al crear copia de seguridad:", error)
       alert("Error al crear copia de seguridad")
+    }
+  }
+
+  const handleExportOrdersToExcel = async () => {
+    try {
+      setExportingExcel(true)
+      await exportOrdersToExcel(orders, "pedidos-empanadas-arepas")
+      setExportingExcel(false)
+    } catch (error) {
+      console.error("Error al exportar pedidos a Excel:", error)
+      alert("Error al exportar pedidos a Excel")
+      setExportingExcel(false)
+    }
+  }
+
+  const handleExportStatsToExcel = async () => {
+    try {
+      setExportingExcel(true)
+      await exportSalesStatsToExcel(stats, "estadisticas-empanadas-arepas")
+      setExportingExcel(false)
+    } catch (error) {
+      console.error("Error al exportar estadísticas a Excel:", error)
+      alert("Error al exportar estadísticas a Excel")
+      setExportingExcel(false)
     }
   }
 
@@ -207,6 +233,26 @@ export default function AdminDashboardPage() {
         </TabsList>
 
         <TabsContent value="dashboard">
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={handleExportStatsToExcel}
+              disabled={exportingExcel || !stats}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {exportingExcel ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Exportar Estadísticas a Excel
+                </>
+              )}
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="pb-2">
@@ -303,6 +349,26 @@ export default function AdminDashboardPage() {
         </TabsContent>
 
         <TabsContent value="orders">
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={handleExportOrdersToExcel}
+              disabled={exportingExcel || orders.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {exportingExcel ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Pedidos a Excel
+                </>
+              )}
+            </Button>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Todos los Pedidos</CardTitle>

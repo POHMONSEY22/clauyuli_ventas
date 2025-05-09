@@ -4,7 +4,18 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { InfoIcon, DatabaseIcon, RefreshCw, CheckCircle, XCircle, Save, Download, Upload, Clock } from "lucide-react"
+import {
+  InfoIcon,
+  DatabaseIcon,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Save,
+  Download,
+  Upload,
+  Clock,
+  FileText,
+} from "lucide-react"
 import Link from "next/link"
 import {
   syncOrders,
@@ -16,12 +27,14 @@ import {
   createBackup,
 } from "@/lib/db"
 import { getBackupInfo, exportDataAsJSON, importDataFromJSON } from "@/lib/internal-db"
+import { exportOrdersToExcel } from "@/lib/excel-export"
 
 export default function AdminSystemPage() {
   const [dbSupported, setDbSupported] = useState<boolean | null>(null)
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle")
   const [backupStatus, setBackupStatus] = useState<"idle" | "creating" | "success" | "error">("idle")
   const [restoreStatus, setRestoreStatus] = useState<"idle" | "restoring" | "success" | "error">("idle")
+  const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "success" | "error">("idle")
   const [orderCount, setOrderCount] = useState<number | null>(null)
   const [dbOrderCount, setDbOrderCount] = useState<number | null>(null)
   const [localOrderCount, setLocalOrderCount] = useState<number | null>(null)
@@ -29,6 +42,7 @@ export default function AdminSystemPage() {
     exists: false,
   })
   const [exportUrl, setExportUrl] = useState<string | null>(null)
+  const [orders, setOrders] = useState<any[]>([])
 
   useEffect(() => {
     // Verificar si IndexedDB es soportado
@@ -68,6 +82,7 @@ export default function AdminSystemPage() {
           const dbOrders = await getAllOrdersFromDB()
           setDbOrderCount(dbOrders.length)
           setOrderCount(dbOrders.length)
+          setOrders(dbOrders)
         } catch (error) {
           console.error("Error al obtener pedidos de IndexedDB:", error)
           setDbOrderCount(0)
@@ -246,6 +261,25 @@ export default function AdminSystemPage() {
     fileInput.click()
   }
 
+  const handleExportToExcel = async () => {
+    try {
+      setExportStatus("exporting")
+      await exportOrdersToExcel(orders, "pedidos-empanadas-arepas-completo")
+      setExportStatus("success")
+
+      setTimeout(() => {
+        setExportStatus("idle")
+      }, 3000)
+    } catch (error) {
+      console.error("Error al exportar a Excel:", error)
+      setExportStatus("error")
+
+      setTimeout(() => {
+        setExportStatus("idle")
+      }, 3000)
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -415,10 +449,10 @@ export default function AdminSystemPage() {
         </CardHeader>
         <CardContent>
           <p className="mb-4">
-            Puedes exportar todos los datos de la aplicación a un archivo JSON para hacer una copia de seguridad
+            Puedes exportar todos los datos de la aplicación a un archivo JSON o Excel para hacer una copia de seguridad
             externa. También puedes importar datos desde un archivo JSON previamente exportado.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button onClick={handleExportData} className="bg-blue-500 hover:bg-blue-600">
               <Download className="mr-2 h-4 w-4" />
               Exportar Datos (JSON)
@@ -426,6 +460,33 @@ export default function AdminSystemPage() {
             <Button onClick={handleImportData} className="bg-green-500 hover:bg-green-600">
               <Upload className="mr-2 h-4 w-4" />
               Importar Datos (JSON)
+            </Button>
+            <Button
+              onClick={handleExportToExcel}
+              disabled={exportStatus !== "idle" || orders.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {exportStatus === "exporting" ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : exportStatus === "success" ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  ¡Exportación Exitosa!
+                </>
+              ) : exportStatus === "error" ? (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Error al Exportar
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Exportar a Excel
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
